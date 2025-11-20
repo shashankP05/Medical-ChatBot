@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>Medical Chatbot</title>
+	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+	<div class="chat-app">
+		<header class="chat-header">
+			<div class="title">MedicalBot</div>
+			<div class="subtitle">Ask medical questions (for informational use only)</div>
+		</header>
+
+		<main class="chat-main">
+			<ul id="messages" class="messages" aria-live="polite"></ul>
+		</main>
+
+		<form id="chat-form" class="chat-form" action="#" method="post" onsubmit="return false;">
+			<label for="msg" class="sr-only">Message</label>
+			<textarea id="msg" name="msg" rows="1" placeholder="Type your message and press Enter to send" autocomplete="off"></textarea>
+			<button id="send" type="submit">Send</button>
+		</form>
+	</div>
+
+	<script>
+		const form = document.getElementById('chat-form');
+		const msgInput = document.getElementById('msg');
+		const messages = document.getElementById('messages');
+		const sendBtn = document.getElementById('send');
+
+		function appendMessage(text, kind='bot'){
+			const li = document.createElement('li');
+			li.className = 'message ' + kind;
+			const bubble = document.createElement('div');
+			bubble.className = 'bubble';
+			bubble.textContent = text;
+			li.appendChild(bubble);
+			messages.appendChild(li);
+			messages.scrollTop = messages.scrollHeight;
+		}
+
+		function setSending(s){
+			if(s){ sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; }
+			else { sendBtn.disabled = false; sendBtn.textContent = 'Send'; }
+		}
+
+		async function sendMessage(text){
+			appendMessage(text, 'user');
+			msgInput.value = '';
+			msgInput.style.height = 'auto';
+			setSending(true);
+			try{
+				const body = new URLSearchParams();
+				body.append('msg', text);
+				const res = await fetch('/get', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+					body: body.toString()
+				});
+				if(!res.ok) throw new Error(res.status + ' ' + res.statusText);
+				const txt = await res.text();
+				appendMessage(txt, 'bot');
+			}catch(e){
+				appendMessage('Error: ' + e.message, 'bot error');
+			}finally{
+				setSending(false);
+			}
+		}
+
+		form.addEventListener('submit', () => {
+			const text = msgInput.value.trim();
+			if(!text) return;
+			sendMessage(text);
+		});
+
+		msgInput.addEventListener('input', () => {
+			msgInput.style.height = 'auto';
+			msgInput.style.height = Math.min(msgInput.scrollHeight, 200) + 'px';
+		});
+
+		msgInput.addEventListener('keydown', (e) => {
+			if(e.key === 'Enter' && !e.shiftKey){
+				e.preventDefault();
+				form.dispatchEvent(new Event('submit'));
+			}
+		});
+
+		// starter message
+		appendMessage('Hello — I am MedicalBot. Ask your medical questions and I will try to help. This is for informational purposes only.', 'bot system');
+	</script>
+</body>
+</html>
