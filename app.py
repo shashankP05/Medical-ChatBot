@@ -1,5 +1,5 @@
 from flask import Flask, render_template, jsonify, request
-from langchain_openai import OpenAI
+from src.gemini_runnable import GeminiRunnable
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_pinecone import PineconeVectorStore
@@ -14,10 +14,11 @@ app = Flask(__name__)
 load_dotenv()
 
 PINECONE_API_KEY = os.environ.get('PINECONE_API_KEY')
-OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
 
-os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
-os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+
+# Only set environment variables if values are present to avoid setting None
+if PINECONE_API_KEY:
+    os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
 
 embeddings = download_hugging_face_embeddings()
 
@@ -31,7 +32,7 @@ docsearch = PineconeVectorStore.from_existing_index(
 
 retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k":3})
 
-llm = OpenAI(temperature=0.4, max_tokens=500)
+llm = GeminiRunnable(temperature=0.4, max_tokens=500)
 prompt = ChatPromptTemplate.from_messages(
     [
         ("system", system_prompt),
@@ -40,7 +41,14 @@ prompt = ChatPromptTemplate.from_messages(
 )
 
 question_answer_chain = prompt | llm
-rag_chian = ({"context": retriever, "input": RunnablePassthrough()} | question_answer_chain)
+def rag_retriever(input):
+    return retriever.invoke(input["input"])
+
+rag_chian = (
+    {"context": rag_retriever, "input": RunnablePassthrough()}
+    | question_answer_chain
+)
+
 
 @app.route("/")
 def index():
@@ -51,9 +59,11 @@ def chat():
     msg = request.form["msg"]
     input = msg
     print(input)
-    response = rag_chian.invoke(msg)
+    # Pass a predictable dict so the Grok wrapper can extract the prompt consistently
+    response = rag_chian.invoke({"input": msg})
     print("response: ", response["content"])
     return str(response["content"])
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port = 8000, debug=True)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)), debug=False)
+    
