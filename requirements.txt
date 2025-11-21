@@ -11,4 +11,3 @@ pinecone[grpc]
 requests
 pydantic
 gunicorn
--e .
