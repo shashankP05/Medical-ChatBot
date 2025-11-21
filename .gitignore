@@ -1,1 +1,9 @@
 .env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+research/
+Data/
+Generative_AI_Project.egg-info/

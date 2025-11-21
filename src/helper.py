@@ -21,5 +21,6 @@ def text_split(extracted_data):
 
 #download the embeddings from hugging face
 def download_hugging_face_embeddings():
-    embeddings=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    # Using a smaller model to reduce memory usage
+    embeddings=HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L12-v2")
     return embeddings
